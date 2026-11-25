@@ -38,6 +38,7 @@ Tags are `v<talos>-<overlay>-r<n>`, not semver. See `docs/releasing.md`.
 - Do not push from a BuildKit `docker-container` builder for the overlay. It produced a manifest that Imager could not extract. The U-Boot build is the exception the other way: the bldr frontend needs `mergeop`, which the default `docker` driver rejects without the containerd image store, so `build-uboot.sh` uses its own `docker-container` builder for local output only.
 - Never edit `overlay/Dockerfile` or `pins/sbc-rockchip.json` by hand. The overlay must be the one Image Factory pairs with the Talos pin. Change `pins/talos.Dockerfile`, then run `uv run pins sync`.
 - The `sbc-rockchip` tags are annotated. Pin the commit the tag points to, not the tag object.
+- `ftp.denx.de` is the only upstream host for the U-Boot tarball and can be down for hours. When it does not answer, `build-uboot.sh` runs `patch-pkg --fedora-mirror`, which takes the same file from the Fedora package cache. bldr still checks the upstream SHA-256 and SHA-512 pins.
 - The build runs on `ubuntu-24.04-arm` so U-Boot builds natively. The dev machine is x86_64 without QEMU and cannot reach `ftp.denx.de`: build U-Boot in CI. The other scripts run locally.
 - Imager's built-in `metal` profile makes a systemd-boot image with no external DTB. Use the overlay's `profiles/rockpi4.yaml` (GRUB) for the raw image, as Image Factory does. `--output-kind` does not override a profile read from stdin.
 - The raw image is about 2.3 GB uncompressed. `/tmp` on the dev machine is a small tmpfs: put build outputs in `_out/`.

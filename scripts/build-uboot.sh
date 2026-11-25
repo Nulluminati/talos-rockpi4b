@@ -3,7 +3,7 @@
 # from the embedded device trees.
 #
 # Usage: scripts/build-uboot.sh OUT_DIR
-# Writes OUT_DIR/u-boot-rockchip.bin. Needs an arm64 host, git, jq, docker and uv.
+# Writes OUT_DIR/u-boot-rockchip.bin. Needs an arm64 host, git, jq, curl, docker and uv.
 set -euo pipefail
 
 out=${1:?usage: build-uboot.sh OUT_DIR}
@@ -33,7 +33,15 @@ if [[ "$root_epoch" != "$epoch" ]]; then
   exit 1
 fi
 
-uv run --project "$root" --locked patch-pkg "$src/artifacts/rockpi4/u-boot/pkg.yaml"
+# ftp.denx.de, the only upstream host for the U-Boot release tarball, is
+# sometimes unreachable for a long time. The Fedora package cache keeps the
+# same file, and bldr checks it against the SHA-256 and SHA-512 pins.
+mirror=()
+if ! curl -sSf -o /dev/null --max-time 30 https://ftp.denx.de/pub/u-boot/; then
+  echo "ftp.denx.de does not answer. The U-Boot source comes from the Fedora package cache." >&2
+  mirror=(--fedora-mirror)
+fi
+uv run --project "$root" --locked patch-pkg "${mirror[@]}" "$src/artifacts/rockpi4/u-boot/pkg.yaml"
 
 # The bldr frontend needs BuildKit features (mergeop) that the default docker
 # driver has only with the containerd image store. This builder writes local

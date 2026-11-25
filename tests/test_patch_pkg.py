@@ -107,3 +107,27 @@ def test_main_patches_the_file(tmp_path, capsys):
 
     assert patch_pkg.main([str(path)]) == 1
     assert "already" in capsys.readouterr().err
+
+
+FEDORA_URL = (
+    "https://src.fedoraproject.org/repo/pkgs/uboot-tools/u-boot-{{ .uboot_version }}.tar.bz2"
+    "/sha512/{{ .uboot_sha512 }}/u-boot-{{ .uboot_version }}.tar.bz2"
+)
+
+
+def test_fedora_mirror_replaces_only_the_source_url():
+    mirrored = patch_pkg.use_fedora_mirror(PKG)
+    assert f"      - url: {FEDORA_URL}\n" in mirrored
+    assert mirrored.replace(FEDORA_URL, "https://ftp.denx.de/pub/u-boot/u-boot-{{ .uboot_version }}.tar.bz2") == PKG
+
+
+def test_fedora_mirror_fails_without_the_denx_url():
+    with pytest.raises(patch_pkg.PatchError, match="ftp.denx.de"):
+        patch_pkg.use_fedora_mirror(PKG.replace("ftp.denx.de", "example.org"))
+
+
+def test_main_with_the_fedora_mirror(tmp_path):
+    path = tmp_path / "pkg.yaml"
+    path.write_text(PKG)
+    assert patch_pkg.main(["--fedora-mirror", str(path)]) == 0
+    assert path.read_text() == patch_pkg.patch(patch_pkg.use_fedora_mirror(PKG))
