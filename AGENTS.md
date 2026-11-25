@@ -35,7 +35,7 @@ Tags are `v<talos>-<overlay>-r<n>`, not semver. See `docs/releasing.md`.
 - `u-boot-rockchip.bin` from `sbc-rockchip:v0.3.0` holds 4 FDT blobs. Only 2 have the eMMC node (`/mmc@fe330000`). A check that requires every blob to have the node is wrong.
 - The upstream external DTB has HS400 properties and no `mmc-hs200-1_8v`. The patch must add HS200, not only delete HS400.
 - Talos Imager pulls `--overlay-image` from a registry at build time. Publish the derived overlay for both `linux/amd64` and `linux/arm64`. An amd64-only overlay makes Imager silently skip the overlay files for `--arch arm64`.
-- Do not push from a BuildKit `docker-container` builder for the overlay. It produced a manifest that Imager could not extract.
+- Do not push from a BuildKit `docker-container` builder for the overlay. It produced a manifest that Imager could not extract. The U-Boot build is the exception the other way: the bldr frontend needs `mergeop`, which the default `docker` driver rejects without the containerd image store, so `build-uboot.sh` uses its own `docker-container` builder for local output only.
 - Never edit `overlay/Dockerfile` or `pins/sbc-rockchip.json` by hand. The overlay must be the one Image Factory pairs with the Talos pin. Change `pins/talos.Dockerfile`, then run `uv run pins sync`.
 - The `sbc-rockchip` tags are annotated. Pin the commit the tag points to, not the tag object.
 - The build runs on `ubuntu-24.04-arm` so U-Boot builds natively. The dev machine is x86_64 without QEMU and cannot reach `ftp.denx.de`: build U-Boot in CI. The other scripts run locally.

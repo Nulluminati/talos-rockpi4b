@@ -35,7 +35,14 @@ fi
 
 uv run --project "$root" --locked patch-pkg "$src/artifacts/rockpi4/u-boot/pkg.yaml"
 
+# The bldr frontend needs BuildKit features (mergeop) that the default docker
+# driver has only with the containerd image store. This builder writes local
+# output and pushes nothing. The overlay build keeps the default builder.
+builder=talos-rockpi4b-uboot
+docker buildx inspect "$builder" >/dev/null 2>&1 || docker buildx create --name="$builder" --driver=docker-container >/dev/null
+
 docker buildx build \
+  --builder="$builder" \
   --file="$src/Pkgfile" \
   --target=u-boot-rockpi4 \
   --platform=linux/arm64 \
