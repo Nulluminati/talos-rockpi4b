@@ -34,7 +34,7 @@ The release notes give the digest of each image. Pin the installer by digest, no
 ```bash
 cosign verify ghcr.io/nulluminati/talos-rockpi4b-installer@sha256:<digest> \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity https://github.com/nulluminati/talos-rockpi4b/.github/workflows/release.yml@refs/tags/<tag>
+  --certificate-identity https://github.com/Nulluminati/talos-rockpi4b/.github/workflows/release.yml@refs/tags/<tag>
 sha256sum -c SHA256SUMS
 ```
 
@@ -103,12 +103,12 @@ uv run pins check
 
 The `Build image` workflow (`.github/workflows/build.yml`) runs these scripts on a GitHub-hosted arm64 runner. Each script also runs on a Linux arm64 host with docker, jq, fdtput, mtools and uv.
 
-1. `scripts/build-uboot.sh`: clones `sbc-rockchip` at the pinned tag, adds the HS200 step to the `rockpi4` U-Boot package with `patch-pkg`, and builds it.
-2. `scripts/patch-dtb.sh`: copies the DTB out of the pinned overlay, patches it with `fdtput` and checks with `check-dtb-patch` that nothing else changed.
-3. `scripts/build-overlay.sh`: builds the derived overlay for amd64 and arm64 and pushes it to a registry on the runner.
-4. `scripts/build-images.sh`: runs Talos Imager with the overlay's own `rockpi4` profile (GRUB, external DTB) for the raw image, and the `installer` profile for the installer.
-5. `scripts/verify-images.sh`: extracts U-Boot and the DTB from both outputs, runs `check-hs200` and compares checksums.
-6. `scripts/upstream-watch.sh`: runs `check-hs200` on the unpatched upstream files and warns when they pass.
+1. `scripts/patch-dtb.sh`: copies the DTB and U-Boot out of the pinned overlay, patches the DTB with `fdtput` and checks with `check-dtb-patch` that nothing else changed.
+2. `scripts/upstream-watch.sh`: runs `check-hs200` on the unpatched upstream files and warns when they pass. It also runs when step 1 fails, because the patch fails when upstream drops HS400.
+3. `scripts/build-uboot.sh`: clones `sbc-rockchip` at the pinned tag, adds the HS200 step to the `rockpi4` U-Boot package with `patch-pkg`, and builds it.
+4. `scripts/build-overlay.sh`: builds the derived overlay for amd64 and arm64 and pushes it to a registry on the runner.
+5. `scripts/build-images.sh`: runs Talos Imager with the overlay's own `rockpi4` profile (GRUB, external DTB) for the raw image, and the `installer` profile for the installer.
+6. `scripts/verify-images.sh`: extracts U-Boot and the DTB from both outputs, runs `check-hs200` and compares checksums.
 
 ## License
 

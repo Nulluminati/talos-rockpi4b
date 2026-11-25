@@ -9,7 +9,7 @@ Builds Talos Linux images for the Radxa ROCK Pi 4B/4B+ with the eMMC limited to 
 - `src/talos_rockpi4b/patch_pkg.py`: `patch-pkg`, adds the HS400 removal step to the upstream `rockpi4` U-Boot `pkg.yaml`.
 - `src/talos_rockpi4b/dtb_diff.py`: `check-dtb-patch`, proves that the patched DTB differs from upstream only in the 3 eMMC properties.
 - `pins/talos.Dockerfile`: the Talos pin, the only pin Dependabot updates. `pins/sbc-rockchip.json` and `overlay/Dockerfile` are written by `pins sync`.
-- `scripts/`: the build steps, in order: `build-uboot.sh`, `patch-dtb.sh`, `build-overlay.sh`, `build-images.sh`, `verify-images.sh`, `upstream-watch.sh`.
+- `scripts/`: the build steps, in order: `patch-dtb.sh`, `upstream-watch.sh`, `build-uboot.sh`, `build-overlay.sh`, `build-images.sh`, `verify-images.sh`.
 - `tests/fdtbuild.py`: builds small FDT blobs for the tests. `tests/data/`: recorded Image Factory and Makefile responses for the `pins` tests.
 - `docs/releasing.md`: tag scheme and release steps.
 - `.github/workflows/ci.yml`: lint, format, tests, `pins check`, gitleaks, and the `Build image` job from `build.yml`. `release.yml`: builds, pushes, signs and releases on a `v*` tag.
@@ -42,4 +42,5 @@ Tags are `v<talos>-<overlay>-r<n>`, not semver. See `docs/releasing.md`.
 - The build runs on `ubuntu-24.04-arm` so U-Boot builds natively. The dev machine is x86_64 without QEMU and cannot reach `ftp.denx.de`: build U-Boot in CI. The other scripts run locally.
 - Imager's built-in `metal` profile makes a systemd-boot image with no external DTB. Use the overlay's `profiles/rockpi4.yaml` (GRUB) for the raw image, as Image Factory does. `--output-kind` does not override a profile read from stdin.
 - The raw image is about 2.3 GB uncompressed. `/tmp` on the dev machine is a small tmpfs: put build outputs in `_out/`.
+- GHCR image names must be lowercase, but the owner is `Nulluminati`. `release.yml` lowercases the owner for the image names. The cosign certificate identity keeps the real case: `https://github.com/Nulluminati/...`.
 - All cluster nodes must run the same Talos version. A Talos upgrade waits for a tested image from this repo.

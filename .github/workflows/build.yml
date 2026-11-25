@@ -46,23 +46,27 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq device-tree-compiler mtools fdisk
           mkdir -p _out/logs
-      - name: Build U-Boot
-        run: scripts/build-uboot.sh _out/files 2>&1 | tee _out/logs/1-build-uboot.log
       - name: Patch the external DTB
-        run: scripts/patch-dtb.sh _out/files 2>&1 | tee _out/logs/2-patch-dtb.log
+        id: dtb
+        run: scripts/patch-dtb.sh _out/files 2>&1 | tee _out/logs/1-patch-dtb.log
+      # Runs before the U-Boot patch and also when the DTB patch fails, so a
+      # build that fails because upstream dropped HS400 still shows the warning.
+      - name: Check the upstream files
+        if: ${{ !cancelled() && steps.dtb.outcome != 'skipped' }}
+        run: scripts/upstream-watch.sh _out/files/upstream 2>&1 | tee _out/logs/2-upstream-watch.log
+      - name: Build U-Boot
+        run: scripts/build-uboot.sh _out/files 2>&1 | tee _out/logs/3-build-uboot.log
       - name: Build the derived overlay
         id: overlay
         run: |
-          ref=$(scripts/build-overlay.sh _out/files "$OVERLAY_IMAGE" "ci-$GITHUB_RUN_ID" 2> >(tee _out/logs/3-build-overlay.log >&2))
+          ref=$(scripts/build-overlay.sh _out/files "$OVERLAY_IMAGE" "ci-$GITHUB_RUN_ID" 2> >(tee _out/logs/4-build-overlay.log >&2))
           echo "ref=$ref" >>"$GITHUB_OUTPUT"
       - name: Build the installer and raw image
         env:
           OVERLAY_REF: ${{ steps.overlay.outputs.ref }}
-        run: scripts/build-images.sh "$OVERLAY_REF" _out/images 2>&1 | tee _out/logs/4-build-images.log
+        run: scripts/build-images.sh "$OVERLAY_REF" _out/images 2>&1 | tee _out/logs/5-build-images.log
       - name: Check the images
-        run: scripts/verify-images.sh _out/files _out/images 2>&1 | tee _out/logs/5-verify-images.log
-      - name: Check the upstream files
-        run: scripts/upstream-watch.sh _out/files/upstream 2>&1 | tee _out/logs/6-upstream-watch.log
+        run: scripts/verify-images.sh _out/files _out/images 2>&1 | tee _out/logs/6-verify-images.log
       - name: Upload the outputs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

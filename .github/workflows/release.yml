@@ -69,9 +69,14 @@ jobs:
       id-token: write
     env:
       TAG: ${{ github.ref_name }}
-      OVERLAY_IMAGE: ghcr.io/${{ github.repository_owner }}/talos-rockpi4b-overlay
-      INSTALLER_IMAGE: ghcr.io/${{ github.repository_owner }}/talos-rockpi4b-installer
+      REPOSITORY: ${{ github.repository }}
     steps:
+      # Image names must be lowercase. The owner is "Nulluminati".
+      - name: Set the image names
+        run: |
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          echo "OVERLAY_IMAGE=ghcr.io/$owner/talos-rockpi4b-overlay" >>"$GITHUB_ENV"
+          echo "INSTALLER_IMAGE=ghcr.io/$owner/talos-rockpi4b-installer" >>"$GITHUB_ENV"
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -112,11 +117,19 @@ jobs:
           OVERLAY_REF: ${{ steps.overlay.outputs.ref }}
           INSTALLER_REF: ${{ steps.installer.outputs.ref }}
         run: cosign sign --yes "$OVERLAY_REF" "$INSTALLER_REF"
+      # The same identity as the verify command in the README and release notes.
+      - name: Verify the signatures
+        env:
+          OVERLAY_REF: ${{ steps.overlay.outputs.ref }}
+          INSTALLER_REF: ${{ steps.installer.outputs.ref }}
+        run: |
+          cosign verify "$OVERLAY_REF" "$INSTALLER_REF" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity "https://github.com/$REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG" >/dev/null
       - name: Write the release notes and checksums
         env:
           OVERLAY_REF: ${{ steps.overlay.outputs.ref }}
           INSTALLER_REF: ${{ steps.installer.outputs.ref }}
-          REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p _out/release
           cp _out/images/metal-arm64.raw.xz _out/release/
