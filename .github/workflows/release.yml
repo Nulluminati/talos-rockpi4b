@@ -48,8 +48,8 @@ jobs:
         run: uv run --locked pins check
       - name: Check the CHANGELOG section
         run: |
-          if ! grep -qF "## [$TAG] - " CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no '## [$TAG] - YYYY-MM-DD' section"
+          if ! grep -qE "^## \[${TAG//./\\.}\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$TAG] - YYYY-MM-DD' section with a real date"
             exit 1
           fi
 

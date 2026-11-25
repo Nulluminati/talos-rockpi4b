@@ -1,4 +1,5 @@
 import json
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -196,3 +197,52 @@ def test_main_check_and_tag(repo, monkeypatch, capsys):
     assert capsys.readouterr().out == "v1.14.7-v0.2.1\n"
     assert pins.main(["tag", "v1.14.7-v0.2.1-r1"]) == 0
     assert pins.main(["tag", "v1.14.7-v0.2.0-r1"]) == 1
+
+
+def flaky(*results):
+    """An open_url stand-in that raises or returns each result in turn."""
+    calls = []
+
+    def open_url(url: str) -> pins.Response:
+        calls.append(url)
+        result = results[len(calls) - 1]
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    return open_url, calls
+
+
+def _http_error(code: int) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError("https://x", code, "error", {}, None)
+
+
+@pytest.mark.parametrize(
+    "error", [urllib.error.URLError("reset"), TimeoutError("timed out"), _http_error(502), _http_error(429)]
+)
+def test_http_fetch_retries_a_transient_failure(error):
+    ok = pins.Response(b"ok", {})
+    open_url, calls = flaky(error, ok)
+    sleeps = []
+
+    assert pins.http_fetch("https://x", open_url=open_url, sleep=sleeps.append) is ok
+    assert len(calls) == 2
+    assert sleeps == [2]
+
+
+def test_http_fetch_gives_up_after_three_tries():
+    open_url, calls = flaky(*[urllib.error.URLError("down")] * 3)
+    sleeps = []
+
+    with pytest.raises(urllib.error.URLError):
+        pins.http_fetch("https://x", open_url=open_url, sleep=sleeps.append)
+    assert len(calls) == 3
+    assert sleeps == [2, 4]
+
+
+def test_http_fetch_does_not_retry_a_client_error():
+    open_url, calls = flaky(_http_error(404))
+
+    with pytest.raises(urllib.error.HTTPError):
+        pins.http_fetch("https://x", open_url=open_url, sleep=lambda _: None)
+    assert len(calls) == 1

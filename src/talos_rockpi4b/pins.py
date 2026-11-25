@@ -17,6 +17,8 @@ import json
 import os
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -69,13 +71,37 @@ class Overlay:
     digest: str
 
 
-def http_fetch(url: str) -> Response:
+def _open_url(url: str) -> Response:
     request = urllib.request.Request(url, headers={"User-Agent": "talos-rockpi4b-pins"})
     token = os.environ.get("GITHUB_TOKEN")
     if token and url.startswith(GITHUB_API + "/"):
         request.add_header("Authorization", f"Bearer {token}")
     with urllib.request.urlopen(request, timeout=30) as response:
         return Response(response.read(), dict(response.headers.items()))
+
+
+def _transient(exc: Exception) -> bool:
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code == 429 or exc.code >= 500
+    return isinstance(exc, (urllib.error.URLError, TimeoutError))
+
+
+def http_fetch(
+    url: str,
+    *,
+    open_url: Fetch = _open_url,
+    sleep: Callable[[float], object] = time.sleep,
+    tries: int = 3,
+) -> Response:
+    """Fetch url. Retry a network error, a 429 or a 5xx, waiting 2 s, then 4 s."""
+    for attempt in range(1, tries + 1):
+        try:
+            return open_url(url)
+        except Exception as exc:
+            if attempt == tries or not _transient(exc):
+                raise
+            sleep(2**attempt)
+    raise AssertionError("unreachable")
 
 
 def _fetch_json(fetch: Fetch, url: str):

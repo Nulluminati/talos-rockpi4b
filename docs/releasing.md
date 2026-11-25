@@ -15,7 +15,7 @@ The project version in `pyproject.toml` belongs to the `check-hs200` tool and do
 ## Cut a release
 
 1. Merge the pull request that changes the pins. CI must pass on `main`, including `pins check` and `Build image`. Run `uv run pins tag` to print the `v<talos>-<overlay>` part of the tag.
-2. Add a `## [v1.14.7-v0.2.1-r1] - YYYY-MM-DD` section to `CHANGELOG.md` with the upstream versions and any change in this repo. Commit it on `main`.
+2. Add a `## [v1.14.7-v0.2.1-r1] - YYYY-MM-DD` section to `CHANGELOG.md` with the upstream versions and any change in this repo. Use the release date: the release gate rejects the `YYYY-MM-DD` placeholder. Commit it on `main`.
 3. Create and push the annotated tag:
 
    ```bash

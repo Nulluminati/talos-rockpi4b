@@ -10,7 +10,10 @@ upstream=${1:?usage: upstream-watch.sh UPSTREAM_DIR}
 root=$(cd "$(dirname "$0")/.." && pwd)
 files=("$upstream/u-boot-rockchip.bin" "$upstream/rk3399-rock-pi-4b.dtb")
 for file in "${files[@]}"; do
-  test -s "$file"
+  if [[ ! -s "$file" ]]; then
+    echo "FAIL $file is missing or empty. patch-dtb.sh did not copy it out of the pinned overlay." >&2
+    exit 1
+  fi
 done
 
 if uv run --project "$root" --locked check-hs200 "${files[@]}"; then
