@@ -1,0 +1,26 @@
+[
+  {
+    "name": "rpi_generic",
+    "image": "siderolabs/sbc-raspberrypi",
+    "ref": "ghcr.io/siderolabs/sbc-raspberrypi:v0.2.2",
+    "digest": "sha256:af82d9f97241fb66c5b660b03e9154fd54ba4560b58ed3b53765bb930d564167"
+  },
+  {
+    "name": "helios64",
+    "image": "siderolabs/sbc-rockchip",
+    "ref": "ghcr.io/siderolabs/sbc-rockchip:v0.2.1",
+    "digest": "sha256:9ce1d1d2ca1c0866bafd9728bd12eb0ef70b386318b033db2c841ce35e33b882"
+  },
+  {
+    "name": "rockpi4",
+    "image": "siderolabs/sbc-rockchip",
+    "ref": "ghcr.io/siderolabs/sbc-rockchip:v0.2.1",
+    "digest": "sha256:9ce1d1d2ca1c0866bafd9728bd12eb0ef70b386318b033db2c841ce35e33b882"
+  },
+  {
+    "name": "rockpi4c",
+    "image": "siderolabs/sbc-rockchip",
+    "ref": "ghcr.io/siderolabs/sbc-rockchip:v0.2.1",
+    "digest": "sha256:9ce1d1d2ca1c0866bafd9728bd12eb0ef70b386318b033db2c841ce35e33b882"
+  }
+]

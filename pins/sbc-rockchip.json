@@ -1,0 +1,9 @@
+{
+  "tag": "v0.2.1",
+  "commit": "2db5d21112f9be2cf0ec9cdc1f2540b7cc98cedc",
+  "pkgs_prefix": "ghcr.io/siderolabs",
+  "pkgs": "v1.14.0-alpha.0-127-g7d8b87b",
+  "tools_prefix": "ghcr.io/siderolabs",
+  "tools": "v1.14.0-alpha.0-29-g80fd6eb",
+  "source_date_epoch": 1710342851
+}

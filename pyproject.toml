@@ -1,7 +1,7 @@
 [project]
 name = "talos-rockpi4b"
 version = "0.1.0"
-description = "Build checks for the Talos Linux ROCK Pi 4B/4B+ HS200 image"
+description = "Build tools and checks for the Talos Linux ROCK Pi 4B/4B+ HS200 image"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
@@ -9,6 +9,9 @@ dependencies = []
 
 [project.scripts]
 check-hs200 = "talos_rockpi4b.check:main"
+check-dtb-patch = "talos_rockpi4b.dtb_diff:main"
+patch-pkg = "talos_rockpi4b.patch_pkg:main"
+pins = "talos_rockpi4b.pins:main"
 
 [build-system]
 requires = ["hatchling"]
