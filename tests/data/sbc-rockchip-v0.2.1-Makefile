@@ -1,0 +1,15 @@
+# Excerpt of the siderolabs/sbc-rockchip Makefile at tag v0.2.1
+# (commit 2db5d21112f9be2cf0ec9cdc1f2540b7cc98cedc), recorded for the pins tests.
+
+BUILD_ARGS = --build-arg=SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)
+BUILD_ARGS += --build-arg=PKGS_PREFIX="$(PKGS_PREFIX)"
+BUILD_ARGS += --build-arg=PKGS="$(PKGS)"
+BUILD_ARGS += --build-arg=TOOLS_PREFIX="$(TOOLS_PREFIX)"
+BUILD_ARGS += --build-arg=TOOLS="$(TOOLS)"
+
+# extra variables
+
+PKGS_PREFIX ?= ghcr.io/siderolabs
+PKGS ?= v1.14.0-alpha.0-127-g7d8b87b
+TOOLS_PREFIX ?= ghcr.io/siderolabs
+TOOLS ?= v1.14.0-alpha.0-29-g80fd6eb

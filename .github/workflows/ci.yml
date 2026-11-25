@@ -13,6 +13,11 @@ jobs:
     name: Lint, format, test
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # Dependabot does not track this download. Update the version and the
+      # checksum together, from actionlint_<version>_checksums.txt.
+      ACTIONLINT_VERSION: "1.7.12"
+      ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,6 +37,28 @@ jobs:
         run: uv run --locked pytest
       - name: Check the lock file
         run: uv lock --check
+      # shellcheck comes with the runner image. actionlint also runs it on the
+      # run: blocks of the workflows.
+      - name: Check the shell scripts
+        run: shellcheck scripts/*.sh
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$archive"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+      - name: Check the workflows
+        run: '"$RUNNER_TEMP/actionlint"'
+      - name: Check the pins against Image Factory
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run --locked pins check
+
+  build:
+    name: Build image
+    uses: ./.github/workflows/build.yml
 
   secrets:
     name: Secret scan (gitleaks)

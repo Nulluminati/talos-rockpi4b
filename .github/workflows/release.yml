@@ -1,0 +1,163 @@
+name: Release
+
+# A v<talos>-<overlay>-r<n> tag on main builds the image, publishes the overlay
+# and the installer to GHCR, signs both with cosign (keyless, GitHub OIDC) and
+# creates the GitHub Release. See docs/releasing.md.
+
+"on":
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Check the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.x"
+      - name: Install uv
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - name: Check that the tag is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Check that the tag matches the pins
+        run: uv run --locked pins tag "$TAG"
+      - name: Check the pins against Image Factory
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run --locked pins check
+      - name: Check the CHANGELOG section
+        run: |
+          if ! grep -qE "^## \[${TAG//./\\.}\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$TAG] - YYYY-MM-DD' section with a real date"
+            exit 1
+          fi
+
+  build:
+    name: Build image
+    needs: verify
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    env:
+      TAG: ${{ github.ref_name }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      # Image names must be lowercase. The owner is "Nulluminati".
+      - name: Set the image names
+        run: |
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          echo "OVERLAY_IMAGE=ghcr.io/$owner/talos-rockpi4b-overlay" >>"$GITHUB_ENV"
+          echo "INSTALLER_IMAGE=ghcr.io/$owner/talos-rockpi4b-installer" >>"$GITHUB_ENV"
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.x"
+      - name: Install uv
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - name: Install crane
+        uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
+      - name: Install cosign
+        uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+      - name: Download the build outputs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: hs200-image
+          path: _out
+      - name: Check the patched files again
+        run: uv run --locked check-hs200 _out/files/u-boot-rockchip.bin _out/files/rk3399-rock-pi-4b.dtb
+      - name: Log in to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Push the overlay
+        id: overlay
+        run: |
+          ref=$(scripts/build-overlay.sh _out/files "$OVERLAY_IMAGE" "$TAG")
+          echo "ref=$ref" >>"$GITHUB_OUTPUT"
+      - name: Push the installer
+        id: installer
+        run: |
+          ref=$(crane push _out/images/installer-arm64.tar "$INSTALLER_IMAGE:$TAG")
+          echo "ref=$ref" >>"$GITHUB_OUTPUT"
+      - name: Sign the overlay and the installer
+        env:
+          OVERLAY_REF: ${{ steps.overlay.outputs.ref }}
+          INSTALLER_REF: ${{ steps.installer.outputs.ref }}
+        run: cosign sign --yes "$OVERLAY_REF" "$INSTALLER_REF"
+      # The same identity as the verify command in the README and release notes.
+      - name: Verify the signatures
+        env:
+          OVERLAY_REF: ${{ steps.overlay.outputs.ref }}
+          INSTALLER_REF: ${{ steps.installer.outputs.ref }}
+        run: |
+          cosign verify "$OVERLAY_REF" "$INSTALLER_REF" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity "https://github.com/$REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG" >/dev/null
+      - name: Write the release notes and checksums
+        env:
+          OVERLAY_REF: ${{ steps.overlay.outputs.ref }}
+          INSTALLER_REF: ${{ steps.installer.outputs.ref }}
+        run: |
+          mkdir -p _out/release
+          cp _out/images/metal-arm64.raw.xz _out/release/
+          cat _out/logs/*.log >_out/release/build.log
+          (cd _out/release && sha256sum metal-arm64.raw.xz build.log >SHA256SUMS)
+          {
+            awk -v head="## [$TAG] - " 'index($0, head) == 1 {on = 1; next} on && /^## \[/ {exit} on' CHANGELOG.md
+            echo
+            echo "## Images"
+            echo
+            echo "- Installer: \`$INSTALLER_REF\`"
+            echo "- Overlay: \`$OVERLAY_REF\`"
+            echo
+            echo "Upgrade with \`talosctl upgrade --image $INSTALLER_REF\`."
+            echo
+            echo "## Verify"
+            echo
+            echo '```bash'
+            echo "cosign verify $INSTALLER_REF \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\"
+            echo "  --certificate-identity https://github.com/$REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG"
+            echo "sha256sum -c SHA256SUMS"
+            echo '```'
+          } >_out/release/notes.md
+          cat _out/release/notes.md
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file _out/release/notes.md \
+            _out/release/metal-arm64.raw.xz _out/release/SHA256SUMS _out/release/build.log
