@@ -32,6 +32,14 @@ jobs:
         run: uv run --locked pytest
       - name: Check the lock file
         run: uv lock --check
+      - name: Check the pins against Image Factory
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run --locked pins check
+
+  build:
+    name: Build image
+    uses: ./.github/workflows/build.yml
 
   secrets:
     name: Secret scan (gitleaks)

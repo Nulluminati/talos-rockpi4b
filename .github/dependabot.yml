@@ -29,3 +29,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # The Talos pin. Only pins/talos.Dockerfile is tracked: `uv run pins sync`
+  # derives the overlay pin from it through Image Factory, so /overlay has no
+  # entry here.
+  - package-ecosystem: "docker"
+    directory: "/pins"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps)"
