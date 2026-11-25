@@ -1,0 +1,5 @@
+# Keep LF in the repository on every OS.
+* text=auto eol=lf
+# Device tree and firmware test inputs are binary.
+*.dtb binary
+*.bin binary
