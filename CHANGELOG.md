@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [v1.14.7-v0.2.1-r1] - YYYY-MM-DD
+## [v1.14.7-v0.2.1-r1] - 2026-11-25
 
 First release. Talos v1.14.7 with the `sbc-rockchip` v0.2.1 `rockpi4` overlay (U-Boot 2026.01, TF-A lts-v2.14.6), as paired by Image Factory.
 
